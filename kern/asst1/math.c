@@ -142,6 +142,10 @@ int maths (int data1, char **data2)
          */
         counter_lock = lock_create("counter_lock");
 
+        if (counter_lock == NULL) {
+                panic("maths: lock create failed");
+        }
+
 
         /*
          * Start NADDERS adder() threads.
