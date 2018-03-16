@@ -1,5 +1,7 @@
 /* This file will contain your solution. Modify it as you wish. */
 #include <types.h>
+#include <synch.h>
+#include <lib.h>
 #include "producerconsumer_driver.h"
 
 /* Declare any variables you need here to keep track of and
@@ -7,6 +9,9 @@
    below. You can change this if you choose another implementation. */
 
 static struct pc_data buffer[BUFFER_SIZE];
+struct lock *pc_lock;
+struct cv *pc_full, *pc_empty;
+int buffer_len;
 
 
 /* consumer_receive() is called by a consumer to request more data. It
@@ -17,11 +22,18 @@ struct pc_data consumer_receive(void)
 {
         struct pc_data thedata;
 
-        (void) buffer; /* remove this line when you start */
+        lock_acquire(pc_lock);
+        while (buffer_len == 0) {
+                cv_wait(pc_empty, pc_lock);
+        }
+        thedata = buffer[0];
+        buffer_len--;
 
-        /* FIXME: this data should come from your buffer, obviously... */
-        thedata.item1 = 1;
-        thedata.item2 = 2;
+        if (buffer_len == BUFFER_SIZE-1) {
+                cv_broadcast(pc_full, pc_lock);
+        }
+
+        lock_release(pc_lock);
 
         return thedata;
 }
@@ -31,7 +43,16 @@ struct pc_data consumer_receive(void)
 
 void producer_send(struct pc_data item)
 {
-        (void) item; /* Remove this when you add your code */
+        lock_acquire(pc_lock);
+        while (buffer_len == BUFFER_SIZE) {
+                cv_wait(pc_full, pc_lock);
+        }
+        buffer[buffer_len++] = item;
+        if (buffer_len == 1) {
+                cv_broadcast(pc_empty, pc_lock);
+        }
+
+        lock_release(pc_lock);
 }
 
 
@@ -42,10 +63,29 @@ void producer_send(struct pc_data item)
 
 void producerconsumer_startup(void)
 {
+        pc_lock = lock_create("pc_lock");
+        if (pc_lock == NULL) {
+                panic("producerconsumer: lock failed to create");
+        }
+
+        pc_full = cv_create("pc_full");
+        if (pc_full == NULL) {
+                panic("producerconsumer: cv failed to create");
+        }
+
+        pc_empty = cv_create("pc_full");
+        if (pc_empty == NULL) {
+                panic("producerconsumer: cv failed to create");
+        }
+
+        buffer_len = 0;
 }
 
 /* Perform any clean-up you need here */
 void producerconsumer_shutdown(void)
 {
+        lock_destroy(pc_lock);
+        cv_destroy(pc_full);
+        cv_destroy(pc_empty);
 }
 
