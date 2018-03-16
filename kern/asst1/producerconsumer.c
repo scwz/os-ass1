@@ -23,12 +23,17 @@ struct pc_data consumer_receive(void)
         struct pc_data thedata;
 
         lock_acquire(pc_lock);
+        
+        // wait until there is an item in the buffer
         while (buffer_len == 0) {
                 cv_wait(pc_empty, pc_lock);
         }
+
+        // remove the item from the buffer
         thedata = buffer[0];
         buffer_len--;
 
+        // signal to other threads there is space in the buffer
         if (buffer_len == BUFFER_SIZE-1) {
                 cv_broadcast(pc_full, pc_lock);
         }
@@ -44,10 +49,16 @@ struct pc_data consumer_receive(void)
 void producer_send(struct pc_data item)
 {
         lock_acquire(pc_lock);
+
+        // wait until there is space in the buffer
         while (buffer_len == BUFFER_SIZE) {
                 cv_wait(pc_full, pc_lock);
         }
+
+        // add item to buffer
         buffer[buffer_len++] = item;
+
+        // signal to other threads there are items waiting in the buffer
         if (buffer_len == 1) {
                 cv_broadcast(pc_empty, pc_lock);
         }
