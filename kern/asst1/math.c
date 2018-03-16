@@ -40,6 +40,7 @@ struct semaphore *finished;
  * ADD YOUR OWN VARIABLES HERE AS NEEDED
  * **********************************************************************
  */
+struct lock *counter_lock;
 
 
 
@@ -78,6 +79,7 @@ static void adder(void * unusedpointer, unsigned long addernumber)
                 /* loop doing increments until we achieve the overall number
                    of increments */
 
+                lock_acquire(counter_lock);
                 a = counter;
                 if (a < NADDS) {
                         counter = counter + 1;
@@ -94,6 +96,7 @@ static void adder(void * unusedpointer, unsigned long addernumber)
                 } else {
                         flag = 0;
                 }
+                lock_release(counter_lock);
         }
 
         /* signal the main thread we have finished and then exit */
@@ -137,6 +140,7 @@ int maths (int data1, char **data2)
          * INSERT ANY INITIALISATION CODE YOU REQUIRE HERE
          * ********************************************************************
          */
+        counter_lock = lock_create("counter_lock");
 
 
         /*
@@ -182,6 +186,7 @@ int maths (int data1, char **data2)
          * INSERT ANY CLEANUP CODE YOU REQUIRE HERE
          * **********************************************************************
          */
+        lock_destroy(counter_lock);
 
 
         /* clean up the semaphore we allocated earlier */
