@@ -13,6 +13,11 @@ struct lock *pc_lock;
 struct cv *pc_full, *pc_empty;
 int buffer_len;
 
+int head;
+
+/* Helper functions */
+void insert_item(struct pc_data item);
+struct pc_data remove_item(void);
 
 /* consumer_receive() is called by a consumer to request more data. It
    should block on a sync primitive if no data is available in your
@@ -30,8 +35,7 @@ struct pc_data consumer_receive(void)
         }
 
         // remove the item from the buffer
-        thedata = buffer[0];
-        buffer_len--;
+        thedata = remove_item();
 
         // signal to other threads there is space in the buffer
         if (buffer_len == BUFFER_SIZE-1) {
@@ -56,7 +60,7 @@ void producer_send(struct pc_data item)
         }
 
         // add item to buffer
-        buffer[buffer_len++] = item;
+        insert_item(item);
 
         // signal to other threads there are items waiting in the buffer
         if (buffer_len == 1) {
@@ -90,6 +94,8 @@ void producerconsumer_startup(void)
         }
 
         buffer_len = 0;
+        
+	head = -1;
 }
 
 /* Perform any clean-up you need here */
@@ -100,3 +106,26 @@ void producerconsumer_shutdown(void)
         cv_destroy(pc_empty);
 }
 
+/* Insert item at end of valid data section in circular array */
+void insert_item(struct pc_data item)
+{
+        // Find end of list, wrapping around if needed
+        int tail = (head + buffer_len) % BUFFER_SIZE;
+
+        // Place new item at tail position
+        buffer[tail] = item;
+        buffer_len++;
+}
+
+/* Remove item from circular array, FIFO */
+struct pc_data remove_item(void)
+{
+        struct pc_data item = buffer[head];
+        buffer_len--;
+
+        // Reset head to start if no entries
+        if (buffer_len == 0) head = 0;
+        else head = (head + 1) % BUFFER_SIZE;
+
+        return item;
+}
