@@ -19,7 +19,8 @@ struct barorder {
         struct glass glass;                               /* Do not change */
 
         /* This struct can be extended with your own entries below here */ 
-
+        int cust_id;
+        int order_fulfilled;
 };
 
 #endif

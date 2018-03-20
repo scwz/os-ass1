@@ -16,7 +16,13 @@
  */
 
 /* Declare any globals you need here (e.g. locks, etc...) */
+struct barorder *orders[NCUSTOMERS];
+unsigned int orders_head;
+unsigned int orders_tail;
+unsigned int orders_size;
 
+struct lock *order_lock, *bottle_lock[NBOTTLES], *cust_lock;
+struct cv *orders_full, *orders_empty, *cv_cust[NCUSTOMERS];
 
 /*
  * **********************************************************************
@@ -34,8 +40,36 @@
 
 void order_drink(struct barorder *order)
 {
-        (void) order; /* Avoid compiler warning, remove when used */
-        panic("You need to write some code!!!!\n");
+        lock_acquire(order_lock);
+
+        // wait until orders queue has space
+        while (orders_size == NCUSTOMERS) {
+                cv_wait(orders_full, order_lock);
+        }
+
+        // add a new order to the orders queue
+        order->cust_id = orders_tail;
+        order->order_fulfilled = 0;
+
+        orders[orders_tail] = order;
+        orders_tail = (orders_tail + 1) % NCUSTOMERS;
+        orders_size++;
+
+        // signal that there is an order available to take
+        if (orders_size == 1)  {
+                cv_broadcast(orders_empty, order_lock);
+        }
+
+        lock_release(order_lock);
+
+        lock_acquire(cust_lock);
+
+        // block customer until their order has been fulfilled
+        while (!order->order_fulfilled) {
+                cv_wait(cv_cust[order->cust_id], cust_lock);
+        }
+
+        lock_release(cust_lock);
 }
 
 
@@ -56,11 +90,29 @@ void order_drink(struct barorder *order)
 
 struct barorder *take_order(void)
 {
-        struct barorder *ret = NULL;
+        struct barorder *ret;
+
+        lock_acquire(order_lock);
+
+        // wait until there is an available order to take
+        while (orders_size == 0) {
+                cv_wait(orders_empty, order_lock);
+        }
+
+        // take the order
+        ret = orders[orders_head];
+        orders_head = (orders_head + 1) % NCUSTOMERS;
+        orders_size--;
+
+        // signal that there is space in the orders queue
+        if (orders_size == NCUSTOMERS-1) {
+                cv_broadcast(orders_full, order_lock);
+        }
+
+        lock_release(order_lock);
 
         return ret;
 }
-
 
 /*
  * fill_order()
@@ -75,13 +127,35 @@ struct barorder *take_order(void)
 
 void fill_order(struct barorder *order)
 {
-
         /* add any sync primitives you need to ensure mutual exclusion
            holds as described */
 
         /* the call to mix must remain */
+        int bottle;
+//        sort(bottles);
+        unsigned int *bottles = order->requested_bottles;
+        unsigned int locked_bottles[NBOTTLES] = {0};
+
+        // TODO: SORT BOTTLES
+        // acquire locks for the drinks included in order
+        for (int i = 0; i < DRINK_COMPLEXITY; i++) {
+                bottle = bottles[i] - 1;
+                if (bottles[i] && !locked_bottles[bottle]) {
+                        lock_acquire(bottle_lock[bottle]);
+                        locked_bottles[bottle] = 1;
+                }
+        }
+
         mix(order);
 
+        // release the locks in reverse order
+        for (int i = DRINK_COMPLEXITY-1; i >= 0; i--) {
+                bottle = bottles[i] - 1;
+                if (bottles[i] && locked_bottles[bottle]) {
+                        lock_release(bottle_lock[bottle]);
+                        locked_bottles[bottle] = 0;
+                }
+        }
 }
 
 
@@ -94,8 +168,13 @@ void fill_order(struct barorder *order)
 
 void serve_order(struct barorder *order)
 {
-        (void) order; /* avoid a compiler warning, remove when you
-                         start */
+        lock_acquire(cust_lock);
+
+        // signal that the order has been fulfilled and unblock the customer
+        order->order_fulfilled = 1;
+        cv_signal(cv_cust[order->cust_id], cust_lock);
+
+        lock_release(cust_lock);
 }
 
 
@@ -117,7 +196,41 @@ void serve_order(struct barorder *order)
 
 void bar_open(void)
 {
+        order_lock = lock_create("order_lock"); 
+        if (order_lock == NULL) {
+                panic("bar: failed to create lock");
+        }
 
+        for (int i = 0; i < NCUSTOMERS; i++) {
+                orders[i] = NULL;
+                cv_cust[i] = cv_create("cv_cust");
+        }
+
+        for (int i = 0; i < NBOTTLES; i++)  {
+                bottle_lock[i] = lock_create("bottle_lock");
+                if (bottle_lock[i] == NULL) {
+                        panic("bar: failed to create lock");
+                }
+        }
+
+        cust_lock = lock_create("cust_lock");
+        if (cust_lock == NULL) {
+                panic("bar: failed to create lock");
+        }
+
+        orders_full = cv_create("orders_full"); 
+        if (orders_full == NULL) {
+                panic("bar: failed to create cv");
+        }
+
+        orders_empty = cv_create("orders_empty");
+        if (orders_empty == NULL) {
+                panic("bar: failed to create cv");
+        }
+
+        orders_head = 0;
+        orders_tail = 0;
+        orders_size = 0;
 }
 
 /*
@@ -129,6 +242,15 @@ void bar_open(void)
 
 void bar_close(void)
 {
-
+        lock_destroy(order_lock); 
+        for (int i = 0; i < NCUSTOMERS; i++) {
+                cv_destroy(cv_cust[i]);
+        }
+        for (int i = 0; i < NBOTTLES; i++)  {
+                lock_destroy(bottle_lock[i]);
+        }
+        lock_destroy(cust_lock);
+        cv_destroy(orders_full); 
+        cv_destroy(orders_empty);
 }
 

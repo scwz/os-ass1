@@ -15,7 +15,7 @@
  *
  */
 
-/* #define PRINT_ON */
+//#define PRINT_ON 
 
 /* this semaphore is for cleaning up at the end. */
 static struct semaphore *alldone;
@@ -78,6 +78,8 @@ static void customer(void *unusedpointer, unsigned long customernum)
 
                 /* I'll have a beer. */
                 order.requested_bottles[0] = BEER;
+                order.requested_bottles[1] = VODKA;
+                order.requested_bottles[2] = RUM;
 
                 /* order the drink, this blocks until the order is fulfilled */
                 order_drink(&order);
