@@ -17,12 +17,12 @@
 
 /* Declare any globals you need here (e.g. locks, etc...) */
 struct barorder *orders[NCUSTOMERS];
-unsigned int orders_head;
-unsigned int orders_tail;
-unsigned int orders_size;
+unsigned int orders_head, orders_tail, orders_size;
 
 struct lock *order_lock, *bottle_lock[NBOTTLES], *cust_lock;
 struct cv *orders_full, *orders_empty, *cv_cust[NCUSTOMERS];
+
+void sort(unsigned int bottles[DRINK_COMPLEXITY]);
 
 /*
  * **********************************************************************
@@ -42,20 +42,20 @@ void order_drink(struct barorder *order)
 {
         lock_acquire(order_lock);
 
-        // wait until orders queue has space
+        /* wait until orders queue has space */
         while (orders_size == NCUSTOMERS) {
                 cv_wait(orders_full, order_lock);
         }
 
-        // add a new order to the orders queue
+        /* add a new order to the orders queue */
         order->cust_id = orders_tail;
-        order->order_fulfilled = 0;
+        order->order_fulfilled = false;
 
         orders[orders_tail] = order;
         orders_tail = (orders_tail + 1) % NCUSTOMERS;
         orders_size++;
 
-        // signal that there is an order available to take
+        /* signal that there is an order available to take */
         if (orders_size == 1)  {
                 cv_broadcast(orders_empty, order_lock);
         }
@@ -64,7 +64,7 @@ void order_drink(struct barorder *order)
 
         lock_acquire(cust_lock);
 
-        // block customer until their order has been fulfilled
+        /* block customer until their order has been fulfilled */
         while (!order->order_fulfilled) {
                 cv_wait(cv_cust[order->cust_id], cust_lock);
         }
@@ -94,18 +94,18 @@ struct barorder *take_order(void)
 
         lock_acquire(order_lock);
 
-        // wait until there is an available order to take
+        /* wait until there is an available order to take */
         while (orders_size == 0) {
                 cv_wait(orders_empty, order_lock);
         }
 
-        // take the order
+        /* take the order */
         ret = orders[orders_head];
         orders_head = (orders_head + 1) % NCUSTOMERS;
         orders_size--;
 
-        // signal that there is space in the orders queue
-        if (orders_size == NCUSTOMERS-1) {
+        /* signal that there is space in the orders queue */
+        if (orders_size == NCUSTOMERS - 1) {
                 cv_broadcast(orders_full, order_lock);
         }
 
@@ -130,30 +130,30 @@ void fill_order(struct barorder *order)
         /* add any sync primitives you need to ensure mutual exclusion
            holds as described */
 
-        /* the call to mix must remain */
-        int bottle;
-//        sort(bottles);
+        unsigned int bottle;
         unsigned int *bottles = order->requested_bottles;
-        unsigned int locked_bottles[NBOTTLES] = {0};
+        bool locked_bottles[NBOTTLES] = {false};
 
-        // TODO: SORT BOTTLES
-        // acquire locks for the drinks included in order
+        sort(bottles);
+
+        /* acquire locks for the drinks included in order */
         for (int i = 0; i < DRINK_COMPLEXITY; i++) {
                 bottle = bottles[i] - 1;
                 if (bottles[i] && !locked_bottles[bottle]) {
                         lock_acquire(bottle_lock[bottle]);
-                        locked_bottles[bottle] = 1;
+                        locked_bottles[bottle] = true;
                 }
         }
 
+        /* the call to mix must remain */
         mix(order);
 
-        // release the locks in reverse order
-        for (int i = DRINK_COMPLEXITY-1; i >= 0; i--) {
+        /* release the locks in reverse order */
+        for (int i = DRINK_COMPLEXITY - 1; i >= 0; i--) {
                 bottle = bottles[i] - 1;
                 if (bottles[i] && locked_bottles[bottle]) {
+                        locked_bottles[bottle] = false;
                         lock_release(bottle_lock[bottle]);
-                        locked_bottles[bottle] = 0;
                 }
         }
 }
@@ -170,8 +170,8 @@ void serve_order(struct barorder *order)
 {
         lock_acquire(cust_lock);
 
-        // signal that the order has been fulfilled and unblock the customer
-        order->order_fulfilled = 1;
+        /* signal that the order has been fulfilled and unblock the customer */
+        order->order_fulfilled = true;
         cv_signal(cv_cust[order->cust_id], cust_lock);
 
         lock_release(cust_lock);
@@ -204,6 +204,9 @@ void bar_open(void)
         for (int i = 0; i < NCUSTOMERS; i++) {
                 orders[i] = NULL;
                 cv_cust[i] = cv_create("cv_cust");
+                if (cv_cust[i] == NULL) {
+                        panic("bar: failed to create cv");
+                }
         }
 
         for (int i = 0; i < NBOTTLES; i++)  {
@@ -254,3 +257,39 @@ void bar_close(void)
         cv_destroy(orders_empty);
 }
 
+/*
+ * sort()
+ *
+ * Sorts the requested bottles in ascending order.
+ * Adapted from the pseudocode at https://en.wikipedia.org/wiki/Counting_sort 
+ *
+ */
+
+void sort(unsigned int bottles[DRINK_COMPLEXITY]) {
+        unsigned int count[NBOTTLES+1] = {0};
+        unsigned int output[DRINK_COMPLEXITY] = {0};
+        int total = 0, old_count;
+
+        /* calculate frequency of each drink */
+        for (int i = 0; i < DRINK_COMPLEXITY; i++) {
+                count[bottles[i]]++;
+        }
+
+        /* calculate starting index for each drink */
+        for (int i = 0; i < NBOTTLES+1; i++) {
+                old_count = count[i];
+                count[i] = total;
+                total += old_count;
+        }
+
+        /* copy to output array */
+        for (int i = 0; i < DRINK_COMPLEXITY; i++) {
+                output[count[bottles[i]]] = bottles[i];
+                count[bottles[i]]++;
+        }
+
+        /* copy back to input array */
+        for (int i = 0; i < DRINK_COMPLEXITY; i++) {
+                bottles[i] = output[i];
+        }
+}

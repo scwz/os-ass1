@@ -20,7 +20,7 @@ struct barorder {
 
         /* This struct can be extended with your own entries below here */ 
         int cust_id;
-        int order_fulfilled;
+        bool order_fulfilled;
 };
 
 #endif

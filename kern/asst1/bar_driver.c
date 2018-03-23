@@ -77,9 +77,9 @@ static void customer(void *unusedpointer, unsigned long customernum)
                 }
 
                 /* I'll have a beer. */
-                order.requested_bottles[0] = BEER;
-                order.requested_bottles[1] = VODKA;
-                order.requested_bottles[2] = RUM;
+                for (j = 0; j < DRINK_COMPLEXITY; j++) {
+                        order.requested_bottles[j] = random() % NBOTTLES+1;
+                }
 
                 /* order the drink, this blocks until the order is fulfilled */
                 order_drink(&order);

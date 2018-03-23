@@ -26,7 +26,7 @@
 #define BOURBON 8
 #define TRIPLE_SEC 9
 #define ORANGE_JUICE 10
-#define NBOTTLES 10
+#define NBOTTLES 50
 
 
 /*
