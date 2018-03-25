@@ -16,13 +16,18 @@
  */
 
 /* Declare any globals you need here (e.g. locks, etc...) */
+/* Fixed buffer and its properties */
 struct barorder *orders[NCUSTOMERS];
-unsigned int orders_head, orders_tail, orders_size;
+unsigned int orders_head, orders_size;
 
+/* Synchronisation primitives */
 struct lock *order_lock, *bottle_lock[NBOTTLES], *cust_lock;
 struct cv *orders_full, *orders_empty, *cv_cust[NCUSTOMERS];
 
+/* Helper functions */
 void sort(unsigned int bottles[DRINK_COMPLEXITY]);
+void insert_order(struct barorder *order);
+struct barorder *remove_order(void);
 
 /*
  * **********************************************************************
@@ -48,12 +53,7 @@ void order_drink(struct barorder *order)
         }
 
         /* add a new order to the orders queue */
-        order->cust_id = orders_tail;
-        order->order_fulfilled = false;
-
-        orders[orders_tail] = order;
-        orders_tail = (orders_tail + 1) % NCUSTOMERS;
-        orders_size++;
+        insert_order(order);
 
         /* signal that there is an order available to take */
         if (orders_size == 1)  {
@@ -100,9 +100,7 @@ struct barorder *take_order(void)
         }
 
         /* take the order */
-        ret = orders[orders_head];
-        orders_head = (orders_head + 1) % NCUSTOMERS;
-        orders_size--;
+        ret = remove_order();
 
         /* signal that there is space in the orders queue */
         if (orders_size == NCUSTOMERS - 1) {
@@ -196,11 +194,6 @@ void serve_order(struct barorder *order)
 
 void bar_open(void)
 {
-        order_lock = lock_create("order_lock"); 
-        if (order_lock == NULL) {
-                panic("bar: failed to create lock");
-        }
-
         for (int i = 0; i < NCUSTOMERS; i++) {
                 orders[i] = NULL;
                 cv_cust[i] = cv_create("cv_cust");
@@ -214,6 +207,11 @@ void bar_open(void)
                 if (bottle_lock[i] == NULL) {
                         panic("bar: failed to create lock");
                 }
+        }
+
+        order_lock = lock_create("order_lock"); 
+        if (order_lock == NULL) {
+                panic("bar: failed to create lock");
         }
 
         cust_lock = lock_create("cust_lock");
@@ -232,7 +230,6 @@ void bar_open(void)
         }
 
         orders_head = 0;
-        orders_tail = 0;
         orders_size = 0;
 }
 
@@ -245,17 +242,26 @@ void bar_open(void)
 
 void bar_close(void)
 {
-        lock_destroy(order_lock); 
         for (int i = 0; i < NCUSTOMERS; i++) {
                 cv_destroy(cv_cust[i]);
         }
+
         for (int i = 0; i < NBOTTLES; i++)  {
                 lock_destroy(bottle_lock[i]);
         }
+
+        lock_destroy(order_lock); 
         lock_destroy(cust_lock);
+
         cv_destroy(orders_full); 
         cv_destroy(orders_empty);
 }
+
+/*
+ * **********************************************************************
+ * HELPER FUNCTIONS
+ * **********************************************************************
+ */
 
 /*
  * sort()
@@ -265,7 +271,8 @@ void bar_close(void)
  *
  */
 
-void sort(unsigned int bottles[DRINK_COMPLEXITY]) {
+void sort(unsigned int bottles[DRINK_COMPLEXITY])
+{
         unsigned int count[NBOTTLES+1] = {0};
         unsigned int output[DRINK_COMPLEXITY] = {0};
         int total = 0, old_count;
@@ -292,4 +299,38 @@ void sort(unsigned int bottles[DRINK_COMPLEXITY]) {
         for (int i = 0; i < DRINK_COMPLEXITY; i++) {
                 bottles[i] = output[i];
         }
+}
+
+/*
+ * insert_order()
+ *
+ * Give order an ID and insert it at the end of the buffer.
+ *
+ */
+
+void insert_order(struct barorder *order) 
+{
+        int tail = (orders_head + orders_size) % NCUSTOMERS;
+        order->cust_id = tail;
+        order->order_fulfilled = false;
+
+        orders[tail] = order;
+        orders_size++;
+}
+
+/*
+ * remove_order()
+ *
+ * Remove the first order in the buffer and return it.
+ *
+ */
+
+struct barorder *remove_order(void)
+{
+        struct barorder *order = orders[orders_head];
+
+        orders_head = (orders_head + 1) % NCUSTOMERS;
+        orders_size--;
+
+        return order;
 }
