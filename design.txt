@@ -1,1 +1,25 @@
 Place your design document here.
+
+Q1.
+The problem is that the counter variable is a shared structure, and currently
+several threads may access it at the same time, causing discrepancies between
+the actual count and the perceived count of the thread. 
+
+For example, thread A executes the adder function and reads the counter
+variable which is currently 0. It is then is forced to sleep by the OS.  Thread
+B then begins execution and also reads the counter variable as 0, but this time
+runs to completion and increments the counter to 1. When thread A resumes
+execution, it still has the old counter value of 0 and increments the counter
+to 1. 
+
+So although the adder function has been executed twice (once each by two
+different threads), the counter has been overwritten to the value of 1 by
+thread A when it should actually be 2.
+
+To fix this we use a lock which forms a critical section for the entire body of
+the while loop in the adder function. This ensures that no concurrent
+modification to the counter variable and other statistics variables can occur.
+A lock was chosen in this case since it is the simplest primitive available to
+us. The critical section is not that long and relatively simple - hence we
+don't need the functionality of sleeping and waking that a semaphore or
+condition variable would provide.
