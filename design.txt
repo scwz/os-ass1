@@ -45,7 +45,8 @@ then broadcast to any waiting bartender threads that there is an order waiting t
 be taken.
 
 The customer gets blocked after making their order through a conditional variable 
-which checks if the order has been fulfilled. The bartender will signal that this
+which checks if the order has been fulfilled. NCUSTOMERS conditional variables are 
+made to block each indiviudal customers order. The bartender will signal that this
 has been done when serve_order() is called. The process of checking if the order 
 has been fulfilled and modifying the variable forms a critical section.
 
