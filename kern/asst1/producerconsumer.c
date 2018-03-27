@@ -9,11 +9,11 @@
    below. You can change this if you choose another implementation. */
 
 static struct pc_data buffer[BUFFER_SIZE];
+int buffer_len;
+int head;
+
 struct lock *pc_lock;
 struct cv *pc_full, *pc_empty;
-int buffer_len;
-
-int head;
 
 /* Helper functions */
 void insert_item(struct pc_data item);
@@ -88,14 +88,13 @@ void producerconsumer_startup(void)
                 panic("producerconsumer: cv failed to create");
         }
 
-        pc_empty = cv_create("pc_full");
+        pc_empty = cv_create("pc_empty");
         if (pc_empty == NULL) {
                 panic("producerconsumer: cv failed to create");
         }
 
         buffer_len = 0;
-        
-	head = -1;
+	head = 0;
 }
 
 /* Perform any clean-up you need here */
@@ -123,9 +122,7 @@ struct pc_data remove_item(void)
         struct pc_data item = buffer[head];
         buffer_len--;
 
-        // Reset head to start if no entries
-        if (buffer_len == 0) head = 0;
-        else head = (head + 1) % BUFFER_SIZE;
+        head = (head + 1) % BUFFER_SIZE;
 
         return item;
 }

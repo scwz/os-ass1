@@ -20,17 +20,17 @@
 /* The number of producers
  * This will be changed during testing
  */
-#define NUM_PRODUCERS 2
+#define NUM_PRODUCERS 100
 
 /* The number of consumer threads
  * This number will be changed during testing
  */
-#define NUM_CONSUMERS 5
+#define NUM_CONSUMERS 20
 
 /* Number of items each producer thread generates before
  * exiting. This number will be changed during testing.
  */
-#define ITEMS_TO_PRODUCE 30
+#define ITEMS_TO_PRODUCE 50
 
 /* If a consumer receives more than the following number of
  * data items, it will automatically exit. This is to help
