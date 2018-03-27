@@ -1,12 +1,10 @@
-Place your design document here.
-
-Q1.
+# Q1.
 The problem is that the counter variable is a shared structure, and currently
 several threads may access it at the same time, causing discrepancies between
 the actual count and the perceived count of the thread. 
 
 For example, thread A executes the adder function and reads the counter
-variable which is currently 0. It is then is forced to sleep by the OS.  Thread
+variable which is currently 0. It is then forced to sleep by the OS.  Thread
 B then begins execution and also reads the counter variable as 0, but this time
 runs to completion and increments the counter to 1. When thread A resumes
 execution, it still has the old counter value of 0 and increments the counter
@@ -23,3 +21,43 @@ A lock was chosen in this case since it is the simplest primitive available to
 us. The critical section is not that long and relatively simple - hence we
 don't need the functionality of sleeping and waking that a semaphore or
 condition variable would provide.
+
+# Q2
+
+
+# Q3
+
+
+# Q4
+The bar synchronisation problem is a variation of the producer-consumer problem.
+The customers (producers) order drinks, while the bartenders (consumers) process
+these orders.
+
+A fixed buffer of size NCUSTOMERS is used to store the orders. The buffer is 
+implemented as a circular queue. Since this is a shared structure, we use a lock 
+and conditional variables to manage access to the buffer. 
+
+Each order gets an ID and a boolean stating if the order has been fulfilled 
+attached to it. A conditional variable is used to make the customer wait until 
+there is free space in the buffer. When there is free space, an order is added to 
+the tail of the buffer and this forms a critical section. The customer thread will 
+then broadcast to any waiting bartender threads that there is an order waiting to 
+be taken.
+
+The customer gets blocked after making their order through a conditional variable 
+which checks if the order has been fulfilled. The bartender will signal that this
+has been done when serve_order() is called. The process of checking if the order 
+has been fulfilled and modifying the variable forms a critical section.
+
+A conditional variable is used to make the bartender wait until an order is added 
+to the buffer. When an order becomes available, the first order made is removed 
+from the buffer and this forms a critical section. The bartender thread then 
+broadcasts to any waiting customer threads that there is free space in the buffer.
+
+After an order has been taken, we lock every bottle that is included in the order. 
+The requested bottles are sorted in ascending order so they do not cause a deadlock. 
+Counting sort is used since the value for DRINK_COMPLEXITY and NBOTTLES will be
+relatively low. To prevent deadlocks in the case of multiple of the same bottle 
+being ordered, an array of booleans is made to keep track of which bottles have been 
+locked. The mixing of the drinks forms the critical section. The locks are then 
+released in reverse.
