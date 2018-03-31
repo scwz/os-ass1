@@ -85,7 +85,7 @@ static void customer(void *unusedpointer, unsigned long customernum)
                 order_drink(&order);
 
 #ifdef PRINT_ON
-                kprintf("C %ld drinking %d, %d, %d\n",
+                kprintf("C %ld drinking %d, %d, %d\n", 
                                 customernum,
                                 order.glass.contents[0],
                                 order.glass.contents[1],

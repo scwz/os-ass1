@@ -26,13 +26,13 @@
 #define BOURBON 8
 #define TRIPLE_SEC 9
 #define ORANGE_JUICE 10
-#define NBOTTLES 10
+#define NBOTTLES 16
 
 
 /*
  * The maximum number of drinks that can be mixed in a single glass
  */
-#define DRINK_COMPLEXITY 3
+#define DRINK_COMPLEXITY 6
 
 
 /*

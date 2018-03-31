@@ -69,6 +69,7 @@ void order_drink(struct barorder *order)
                 cv_wait(cv_cust[order->cust_id], cust_lock);
         }
 
+
         lock_release(cust_lock);
 }
 
@@ -195,7 +196,6 @@ void serve_order(struct barorder *order)
 void bar_open(void)
 {
         for (int i = 0; i < NCUSTOMERS; i++) {
-                orders[i] = NULL;
                 cv_cust[i] = cv_create("cv_cust");
                 if (cv_cust[i] == NULL) {
                         panic("bar: failed to create cv");

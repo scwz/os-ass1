@@ -20,12 +20,12 @@
 /* The number of producers
  * This will be changed during testing
  */
-#define NUM_PRODUCERS 100
+#define NUM_PRODUCERS 32
 
 /* The number of consumer threads
  * This number will be changed during testing
  */
-#define NUM_CONSUMERS 20
+#define NUM_CONSUMERS 32
 
 /* Number of items each producer thread generates before
  * exiting. This number will be changed during testing.

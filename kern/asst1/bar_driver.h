@@ -53,6 +53,6 @@ extern void mix(struct barorder *);
  * greater than zero.
  */ 
 
-#define NCUSTOMERS 10 /* The number of customers drinking today */
-#define NBARTENDERS 3 /* The number of bartenders working today */
+#define NCUSTOMERS 32 /* The number of customers drinking today */
+#define NBARTENDERS 32 /* The number of bartenders working today */
 

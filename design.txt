@@ -3,24 +3,9 @@ The problem is that the counter variable is a shared structure, and currently
 several threads may access it at the same time, causing discrepancies between
 the actual count and the perceived count of the thread. 
 
-For example, thread A executes the adder function and reads the counter
-variable which is currently 0. It is then forced to sleep by the OS.  Thread
-B then begins execution and also reads the counter variable as 0, but this time
-runs to completion and increments the counter to 1. When thread A resumes
-execution, it still has the old counter value of 0 and increments the counter
-to 1. 
-
-So although the adder function has been executed twice (once each by two
-different threads), the counter has been overwritten to the value of 1 by
-thread A when it should actually be 2.
-
 To fix this we use a lock which forms a critical section for the entire body of
 the while loop in the adder function. This ensures that no concurrent
 modification to the counter variable and other statistics variables can occur.
-A lock was chosen in this case since it is the simplest primitive available to
-us. The critical section is not that long and relatively simple - hence we
-don't need the functionality of sleeping and waking that a semaphore or
-condition variable would provide.
 
 # Q2
 The problem here is that the locks are shared, and function bill acquires locks
@@ -43,7 +28,6 @@ if either function acquires only lock a, then any another thread still cannot
 acquire any locks at all until the first function has acquired and released
 both locks. This prevents the deadlock scenario.
 
-
 # Q3
 The problem is the producer/consumer problem - one or more producer threads put
 data into a circular buffer of fixed size, while one or more consumer threads
@@ -52,8 +36,7 @@ consumes information from the same buffer.
 Three synchronisation structures are used - one lock, and two condition
 variables. A circular buffer is also used to store produced items, and counters
 are kept for tracking the number of items in the buffer and the head of the
-item list within the buffer (since the buffer is circular the head can occur
-anywhere in the array).  These structures are all shared between threads.
+item list within the buffer. These structures are all shared between threads.
 
 The lock is used for mutual exclusion within both the consumer_receive and
 producer_send functions. The code between the acquisition and release of this
@@ -110,7 +93,7 @@ to the buffer. When an order becomes available, the first order made is removed
 from the buffer and this forms a critical section. The bartender thread then 
 broadcasts to any waiting customer threads that there is free space in the buffer.
 
-After an order has been taken, we lock every bottle that is included in the order. 
+To mix in parallel, we lock every bottle that is included in the order. 
 The requested bottles are sorted in ascending order so they do not cause a deadlock. 
 Counting sort is used since the value for DRINK_COMPLEXITY and NBOTTLES will be
 relatively low. To prevent deadlocks in the case of multiple of the same bottle 
