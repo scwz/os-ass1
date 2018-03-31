@@ -46,18 +46,18 @@ the buffer and its associated counters.
 
 The consumer_receive function checks the amount of items in the buffer. If
 there are no items to consume, it blocks on the pc_empty condition variable and
-releases the lock until there is. Once there is an item (broadcasted by the
-signal call in the producer_send function), and the lock is free to acquire,
+releases the lock until there is. Once there is an item (signalled by the
+broadcast call in the producer_send function), and the lock is free to acquire,
 it can then wake and consume the item, removing it from the buffer and also
-signalling to any threads waiting on the pc_full condition variable that
+broadcasting to any threads waiting on the pc_full condition variable that
 there is space to produce another item.
 
 The producer_send function checks if there is space in the buffer to place an
 item. If there is no space, it blocks on  the pc_full condition variable and
-releases the lock until there is. Once there is space (broadcasted by the
-signal call in the consumer_receive function), and the lock is free to
+releases the lock until there is. Once there is space (signalled by the
+broadcast call in the consumer_receive function), and the lock is free to
 acquire, it can then wake and produce an item to store in the buffer.  It then
-signals to any threads waiting on the pc_empty condition variable that there
+broadcasts to any threads waiting on the pc_empty condition variable that there
 is an item to consume.
 
 We use condition variables here in addition to the lock because they enable

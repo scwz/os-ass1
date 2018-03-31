@@ -37,9 +37,9 @@ struct pc_data consumer_receive(void)
         // remove the item from the buffer
         thedata = remove_item();
 
-        // signal to other threads there is space in the buffer
+        // broadcast to other threads there is space in the buffer
         if (buffer_len == BUFFER_SIZE-1) {
-                cv_signal(pc_full, pc_lock);
+                cv_broadcast(pc_full, pc_lock);
         }
 
         lock_release(pc_lock);
@@ -62,9 +62,9 @@ void producer_send(struct pc_data item)
         // add item to buffer
         insert_item(item);
 
-        // signal to other threads there are items waiting in the buffer
+        // broadcast to other threads there are items waiting in the buffer
         if (buffer_len == 1) {
-                cv_signal(pc_empty, pc_lock);
+                cv_broadcast(pc_empty, pc_lock);
         }
 
         lock_release(pc_lock);
