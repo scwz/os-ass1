@@ -32,7 +32,7 @@
 /*
  * The maximum number of drinks that can be mixed in a single glass
  */
-#define DRINK_COMPLEXITY 6
+#define DRINK_COMPLEXITY 8
 
 
 /*

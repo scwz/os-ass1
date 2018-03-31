@@ -46,18 +46,18 @@ the buffer and its associated counters.
 
 The consumer_receive function checks the amount of items in the buffer. If
 there are no items to consume, it blocks on the pc_empty condition variable and
-releases the lock until there is. Once there is an item (signalled by the
-broadcast call in the producer_send function), and the lock is free to acquire,
+releases the lock until there is. Once there is an item (broadcasted by the
+signal call in the producer_send function), and the lock is free to acquire,
 it can then wake and consume the item, removing it from the buffer and also
-broadcasting to any threads waiting on the pc_full condition variable that
+signalling to any threads waiting on the pc_full condition variable that
 there is space to produce another item.
 
 The producer_send function checks if there is space in the buffer to place an
 item. If there is no space, it blocks on  the pc_full condition variable and
-releases the lock until there is. Once there is space (signalled by the
-broadcast call in the consumer_receive function), and the lock is free to
+releases the lock until there is. Once there is space (broadcasted by the
+signal call in the consumer_receive function), and the lock is free to
 acquire, it can then wake and produce an item to store in the buffer.  It then
-broadcasts to any threads waiting on the pc_empty condition variable that there
+signals to any threads waiting on the pc_empty condition variable that there
 is an item to consume.
 
 We use condition variables here in addition to the lock because they enable
@@ -79,7 +79,7 @@ Each order gets an ID and a boolean stating if the order has been fulfilled
 attached to it. A conditional variable is used to make the customer wait until 
 there is free space in the buffer. When there is free space, an order is added to 
 the tail of the buffer and this forms a critical section. The customer thread will 
-then broadcast to any waiting bartender threads that there is an order waiting to 
+then signal to any waiting bartender threads that there is an order waiting to 
 be taken.
 
 The customer gets blocked after making their order through a conditional variable 
@@ -91,7 +91,7 @@ has been fulfilled and modifying the variable forms a critical section.
 A conditional variable is used to make the bartender wait until an order is added 
 to the buffer. When an order becomes available, the first order made is removed 
 from the buffer and this forms a critical section. The bartender thread then 
-broadcasts to any waiting customer threads that there is free space in the buffer.
+signals to any waiting customer threads that there is free space in the buffer.
 
 To mix in parallel, we lock every bottle that is included in the order. 
 The requested bottles are sorted in ascending order so they do not cause a deadlock. 

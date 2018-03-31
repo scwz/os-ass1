@@ -57,7 +57,7 @@ void order_drink(struct barorder *order)
 
         /* signal that there is an order available to take */
         if (orders_size == 1)  {
-                cv_broadcast(orders_empty, order_lock);
+                cv_signal(orders_empty, order_lock);
         }
 
         lock_release(order_lock);
@@ -68,7 +68,6 @@ void order_drink(struct barorder *order)
         while (!order->order_fulfilled) {
                 cv_wait(cv_cust[order->cust_id], cust_lock);
         }
-
 
         lock_release(cust_lock);
 }
@@ -105,7 +104,7 @@ struct barorder *take_order(void)
 
         /* signal that there is space in the orders queue */
         if (orders_size == NCUSTOMERS - 1) {
-                cv_broadcast(orders_full, order_lock);
+                cv_signal(orders_full, order_lock);
         }
 
         lock_release(order_lock);
