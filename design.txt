@@ -93,10 +93,7 @@ to the buffer. When an order becomes available, the first order made is removed
 from the buffer and this forms a critical section. The bartender thread then 
 signals to any waiting customer threads that there is free space in the buffer.
 
-To mix in parallel, we lock every bottle that is included in the order. 
-The requested bottles are sorted in ascending order so they do not cause a deadlock. 
-Counting sort is used since the value for DRINK_COMPLEXITY and NBOTTLES will be
-relatively low. To prevent deadlocks in the case of multiple of the same bottle 
-being ordered, an array of booleans is made to keep track of which bottles have been 
-locked. The mixing of the drinks forms the critical section. The locks are then 
-released in reverse.
+To mix in parallel, we lock every bottle that is included in the order. To prevent 
+deadlocks in the case of multiple of the same bottle being ordered, an array of 
+booleans is made to keep track of which bottles have been locked. The mixing of 
+the drinks forms the critical section. The locks are then released in reverse.

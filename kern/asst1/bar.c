@@ -25,7 +25,6 @@ struct lock *order_lock, *bottle_lock[NBOTTLES], *cust_lock;
 struct cv *orders_full, *orders_empty, *cv_cust[NCUSTOMERS];
 
 /* Helper functions */
-void sort(unsigned int bottles[DRINK_COMPLEXITY]);
 void insert_order(struct barorder *order);
 struct barorder *remove_order(void);
 
@@ -129,17 +128,20 @@ void fill_order(struct barorder *order)
            holds as described */
 
         unsigned int bottle;
-        unsigned int *bottles = order->requested_bottles;
         bool locked_bottles[NBOTTLES] = {false};
 
-        sort(bottles);
+        /* get requested bottles */
+        for (int i = 0; i < DRINK_COMPLEXITY; i++) {
+                bottle = order->requested_bottles[i];
+                if (bottle) {
+                        locked_bottles[bottle - 1] = true;
+                }
+        }
 
         /* acquire locks for the drinks included in order */
-        for (int i = 0; i < DRINK_COMPLEXITY; i++) {
-                bottle = bottles[i] - 1;
-                if (bottles[i] && !locked_bottles[bottle]) {
-                        lock_acquire(bottle_lock[bottle]);
-                        locked_bottles[bottle] = true;
+        for (int i = 0; i < NBOTTLES; i++) {
+                if (locked_bottles[i]) {
+                        lock_acquire(bottle_lock[i]);
                 }
         }
 
@@ -147,11 +149,9 @@ void fill_order(struct barorder *order)
         mix(order);
 
         /* release the locks in reverse order */
-        for (int i = DRINK_COMPLEXITY - 1; i >= 0; i--) {
-                bottle = bottles[i] - 1;
-                if (bottles[i] && locked_bottles[bottle]) {
-                        locked_bottles[bottle] = false;
-                        lock_release(bottle_lock[bottle]);
+        for (int i = NBOTTLES - 1; i >= 0; i--) {
+                if (locked_bottles[i]) {
+                        lock_release(bottle_lock[i]);
                 }
         }
 }
@@ -261,44 +261,6 @@ void bar_close(void)
  * HELPER FUNCTIONS
  * **********************************************************************
  */
-
-/*
- * sort()
- *
- * Sorts the requested bottles in ascending order.
- * Adapted from the pseudocode at https://en.wikipedia.org/wiki/Counting_sort 
- *
- */
-
-void sort(unsigned int bottles[DRINK_COMPLEXITY])
-{
-        unsigned int count[NBOTTLES+1] = {0};
-        unsigned int output[DRINK_COMPLEXITY] = {0};
-        int total = 0, old_count;
-
-        /* calculate frequency of each drink */
-        for (int i = 0; i < DRINK_COMPLEXITY; i++) {
-                count[bottles[i]]++;
-        }
-
-        /* calculate starting index for each drink */
-        for (int i = 0; i < NBOTTLES+1; i++) {
-                old_count = count[i];
-                count[i] = total;
-                total += old_count;
-        }
-
-        /* copy to output array */
-        for (int i = 0; i < DRINK_COMPLEXITY; i++) {
-                output[count[bottles[i]]] = bottles[i];
-                count[bottles[i]]++;
-        }
-
-        /* copy back to input array */
-        for (int i = 0; i < DRINK_COMPLEXITY; i++) {
-                bottles[i] = output[i];
-        }
-}
 
 /*
  * insert_order()
