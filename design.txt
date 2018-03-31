@@ -23,10 +23,65 @@ don't need the functionality of sleeping and waking that a semaphore or
 condition variable would provide.
 
 # Q2
+The problem here is that the locks are shared, and function bill acquires locks
+in the order a, b whereas the function ben acquires locks in the order b, a.
+This can lead to a deadlock where the bill thread can acquire lock a, and is
+then forced to sleep by the OS.  The other thread can then run ben to acquire
+lock b, at which point neither thread can progress as neither can obtain the
+other missing lock. Since they can't progress they also can't release the lock
+they have already acquired, causing deadlock.
+
+The code forming the critical section is the two dummy lines between the locks
+for both bill and ben.
+
+To solve this problem, we simply change both the order of lock acquisition and
+lock release in the ben function to match the order in the bill function. So
+the ben function now acquires in the order a, b and releases in the order b, a.
+
+Now both functions require lock 'a' first to progress.  This ensures that even
+if either function acquires only lock a, then any another thread still cannot
+acquire any locks at all until the first function has acquired and released
+both locks. This prevents the deadlock scenario.
 
 
 # Q3
+The problem is the producer/consumer problem - one or more producer threads put
+data into a circular buffer of fixed size, while one or more consumer threads
+consumes information from the same buffer.
 
+Three synchronisation structures are used - one lock, and two condition
+variables. A circular buffer is also used to store produced items, and counters
+are kept for tracking the number of items in the buffer and the head of the
+item list within the buffer (since the buffer is circular the head can occur
+anywhere in the array).  These structures are all shared between threads.
+
+The lock is used for mutual exclusion within both the consumer_receive and
+producer_send functions. The code between the acquisition and release of this
+lock defines the critical sections, which are protected from concurrent
+modification. This prevents race conditions and incorrect behaviour involving
+the buffer and its associated counters.
+
+The consumer_receive function checks the amount of items in the buffer. If
+there are no items to consume, it blocks on the pc_empty condition variable and
+releases the lock until there is. Once there is an item (signalled by the
+broadcast call in the producer_send function), and the lock is free to acquire,
+it can then wake and consume the item, removing it from the buffer and also
+broadcasting to any threads waiting on the pc_full condition variable that
+there is space to produce another item.
+
+The producer_send function checks if there is space in the buffer to place an
+item. If there is no space, it blocks on  the pc_full condition variable and
+releases the lock until there is. Once there is space (signalled by the
+broadcast call in the consumer_receive function), and the lock is free to
+acquire, it can then wake and produce an item to store in the buffer.  It then
+broadcasts to any threads waiting on the pc_empty condition variable that there
+is an item to consume.
+
+We use condition variables here in addition to the lock because they enable
+sleeping/waking functionality. Threads can sleep while they either wait for an
+item to consume, or wait for space to place an item. Instead of waiting idle
+the OS can then switch to a different non-waiting thread to minimize downtime
+and therefore the program will execute faster overall.
 
 # Q4
 The bar synchronisation problem is a variation of the producer-consumer problem.
